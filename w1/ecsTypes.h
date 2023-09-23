@@ -3,55 +3,55 @@
 struct Position;
 struct MovePos;
 
-struct MovePos
-{
+struct MovePos {
   int x = 0;
   int y = 0;
 
   MovePos &operator=(const Position &rhs);
 };
 
-struct Position
-{
+struct Position {
   int x = 0;
   int y = 0;
 
   Position &operator=(const MovePos &rhs);
 };
 
-inline Position &Position::operator=(const MovePos &rhs)
-{
+inline Position &Position::operator=(const MovePos &rhs) {
   x = rhs.x;
   y = rhs.y;
   return *this;
 }
 
-inline MovePos &MovePos::operator=(const Position &rhs)
-{
+inline MovePos &MovePos::operator=(const Position &rhs) {
   x = rhs.x;
   y = rhs.y;
   return *this;
 }
 
-inline bool operator==(const Position &lhs, const Position &rhs) { return lhs.x == rhs.x && lhs.y == rhs.y; }
-inline bool operator==(const Position &lhs, const MovePos &rhs) { return lhs.x == rhs.x && lhs.y == rhs.y; }
-inline bool operator==(const MovePos &lhs, const MovePos &rhs) { return lhs.x == rhs.x && lhs.y == rhs.y; }
-inline bool operator==(const MovePos &lhs, const Position &rhs) { return lhs.x == rhs.x && lhs.y == rhs.y; }
+inline bool operator==(const Position &lhs, const Position &rhs) {
+  return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+inline bool operator==(const Position &lhs, const MovePos &rhs) {
+  return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+inline bool operator==(const MovePos &lhs, const MovePos &rhs) {
+  return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+inline bool operator==(const MovePos &lhs, const Position &rhs) {
+  return lhs.x == rhs.x && lhs.y == rhs.y;
+}
 
-
-struct PatrolPos
-{
+struct PatrolPos {
   int x = 0;
   int y = 0;
 };
 
-struct Hitpoints
-{
+struct Hitpoints {
   float hitpoints = 10.f;
 };
 
-enum Actions
-{
+enum Actions {
   EA_NOP = 0,
   EA_MOVE_START,
   EA_MOVE_LEFT = EA_MOVE_START,
@@ -63,51 +63,42 @@ enum Actions
   EA_NUM
 };
 
-struct Action
-{
+struct Action {
   int action = 0;
 };
 
-struct NumActions
-{
+struct NumActions {
   int numActions = 1;
   int curActions = 0;
 };
 
-struct MeleeDamage
-{
+struct MeleeDamage {
   float damage = 2.f;
 };
 
-struct HealAmount
-{
+struct HealAmount {
   float amount = 0.f;
 };
 
-struct PowerupAmount
-{
+struct PowerupAmount {
   float amount = 0.f;
 };
 
-struct PlayerInput
-{
+struct PlayerInput {
   bool left = false;
   bool right = false;
   bool up = false;
   bool down = false;
 };
 
-struct Symbol
-{
+struct Symbol {
   char symb;
 };
 
 struct IsPlayer {};
 
-struct Team
-{
+struct Team {
   int team = 0;
 };
 
 struct TextureSource {};
-

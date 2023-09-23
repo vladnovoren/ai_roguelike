@@ -1,10 +1,11 @@
 #pragma once
 #include <enet/enet.h>
+
 #include <cstdint>
+
 #include "entity.h"
 
-enum MessageType : uint8_t
-{
+enum MessageType : uint8_t {
   E_CLIENT_TO_SERVER_JOIN = 0,
   E_SERVER_TO_CLIENT_NEW_ENTITY,
   E_SERVER_TO_CLIENT_SET_CONTROLLED_ENTITY,
@@ -22,6 +23,7 @@ MessageType get_packet_type(ENetPacket *packet);
 
 void deserialize_new_entity(ENetPacket *packet, Entity &ent);
 void deserialize_set_controlled_entity(ENetPacket *packet, uint16_t &eid);
-void deserialize_entity_state(ENetPacket *packet, uint16_t &eid, float &x, float &y);
-void deserialize_snapshot(ENetPacket *packet, uint16_t &eid, float &x, float &y);
-
+void deserialize_entity_state(ENetPacket *packet, uint16_t &eid, float &x,
+                              float &y);
+void deserialize_snapshot(ENetPacket *packet, uint16_t &eid, float &x,
+                          float &y);

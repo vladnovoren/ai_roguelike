@@ -13,29 +13,15 @@ class State {
   virtual ~State() = default;
 };
 
-class StateTransition;
-
-StateTransition *create_enemy_available_transition(float dist);
-StateTransition *create_enemy_reachable_transition();
-StateTransition *create_hitpoints_less_than_transition(float thres);
-StateTransition *create_negate_transition(StateTransition *in);
-StateTransition *create_and_transition(StateTransition *lhs,
-                                       StateTransition *rhs);
-StateTransition *create_or_transition(StateTransition *lhs,
-                                      StateTransition *rhs);
-StateTransition *create_player_low_hp_transition(flecs::world &ecs,
-                                                 float thres);
-StateTransition *create_player_near_transition(flecs::world &ecs, float dist);
-
 class StateTransition {
  public:
   virtual ~StateTransition() = default;
-  virtual bool isAvailable(flecs::world &ecs, flecs::entity entity) const = 0;
+  virtual bool isAvailable(flecs::world &ecs, flecs::entity entity) = 0;
   [[nodiscard]] virtual std::unique_ptr<StateTransition> Copy() const = 0;
 };
 
 class NegateTransition : public StateTransition {
-  std::unique_ptr<const StateTransition> trans_impl_;
+  std::unique_ptr<StateTransition> trans_impl_;
 
  public:
   explicit NegateTransition(const StateTransition &trans_impl)
@@ -45,7 +31,7 @@ class NegateTransition : public StateTransition {
     trans_impl_ = other_copy.trans_impl_->Copy();
   }
 
-  bool isAvailable(flecs::world &ecs, flecs::entity entity) const override {
+  bool isAvailable(flecs::world &ecs, flecs::entity entity) override {
     return !trans_impl_->isAvailable(ecs, entity);
   }
 
@@ -55,8 +41,8 @@ class NegateTransition : public StateTransition {
 };
 
 class AndTransition : public StateTransition {
-  std::unique_ptr<const StateTransition> lhs_;
-  std::unique_ptr<const StateTransition> rhs_;
+  std::unique_ptr<StateTransition> lhs_;
+  std::unique_ptr<StateTransition> rhs_;
 
  public:
   AndTransition(const StateTransition &lhs, const StateTransition &rhs)
@@ -65,7 +51,7 @@ class AndTransition : public StateTransition {
   AndTransition(const AndTransition &other_copy)
       : lhs_(other_copy.lhs_->Copy()), rhs_(other_copy.rhs_->Copy()) {}
 
-  bool isAvailable(flecs::world &ecs, flecs::entity entity) const override {
+  bool isAvailable(flecs::world &ecs, flecs::entity entity) override {
     return lhs_->isAvailable(ecs, entity) && rhs_->isAvailable(ecs, entity);
   }
 
@@ -75,8 +61,8 @@ class AndTransition : public StateTransition {
 };
 
 class OrTransition : public StateTransition {
-  std::unique_ptr<const StateTransition> lhs_;
-  std::unique_ptr<const StateTransition> rhs_;
+  std::unique_ptr<StateTransition> lhs_;
+  std::unique_ptr<StateTransition> rhs_;
 
  public:
   OrTransition(const StateTransition &lhs, const StateTransition &rhs)
@@ -85,7 +71,7 @@ class OrTransition : public StateTransition {
   OrTransition(const OrTransition &other_copy)
       : lhs_(other_copy.lhs_->Copy()), rhs_(other_copy.rhs_->Copy()) {}
 
-  bool isAvailable(flecs::world &ecs, flecs::entity entity) const override {
+  bool isAvailable(flecs::world &ecs, flecs::entity entity) override {
     return lhs_->isAvailable(ecs, entity) && rhs_->isAvailable(ecs, entity);
   }
 
@@ -127,7 +113,7 @@ class TransitionHandle {
   }
 
  public:
-  [[nodiscard]] const StateTransition &Get() const { return *trans_impl_; }
+  [[nodiscard]] StateTransition &Get() { return *trans_impl_; }
 
  public:
   TransitionHandle operator!() const {

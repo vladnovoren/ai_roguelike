@@ -157,11 +157,15 @@ void PatrolState::act(float /* dt*/, flecs::world &ecs, flecs::entity entity) {
 
 void NopState::enter() {}
 void NopState::exit() {}
-void NopState::act(float /* dt*/, flecs::world &ecs, flecs::entity entity) {}
+void NopState::act(float /* dt*/, flecs::world &, flecs::entity) {}
 
-bool TrueTransition::isAvailable(flecs::world &, flecs::entity) const {
-  return true;
+void CraftHealState::enter() {}
+void CraftHealState::act(float, flecs::world &, flecs::entity entity) {
+  entity.set([&](HealCnt &heal_cnt) { ++heal_cnt.cnt; });
 }
+void CraftHealState::exit() {}
+
+bool TrueTransition::isAvailable(flecs::world &, flecs::entity) { return true; }
 
 std::unique_ptr<StateTransition> TrueTransition::Copy() const {
   return std::unique_ptr<TrueTransition>();
@@ -171,7 +175,7 @@ EnemyAvailableTransition::EnemyAvailableTransition(float in_dist)
     : triggerDist(in_dist) {}
 
 bool EnemyAvailableTransition::isAvailable(flecs::world &ecs,
-                                           flecs::entity entity) const {
+                                           flecs::entity entity) {
   static auto enemiesQuery = ecs.query<const Position, const Team>();
   bool enemiesFound = false;
   entity.get([&](const Position &pos, const Team &t) {
@@ -193,8 +197,7 @@ EntityNearTransition::EntityNearTransition(flecs::entity target,
                                            float thres_dist)
     : target_(target), thres_dist_(thres_dist) {}
 
-bool EntityNearTransition::isAvailable(flecs::world &,
-                                       flecs::entity actor) const {
+bool EntityNearTransition::isAvailable(flecs::world &, flecs::entity actor) {
   bool res = false;
   actor.get([&](const Position &actor_pos) {
     target_.get([&](const Position &target_pos) {
@@ -204,21 +207,65 @@ bool EntityNearTransition::isAvailable(flecs::world &,
   return res;
 }
 
-[[nodiscard]] std::unique_ptr<StateTransition> EntityNearTransition::Copy()
-    const {
+std::unique_ptr<StateTransition> EntityNearTransition::Copy() const {
   return std::make_unique<EntityNearTransition>(*this);
 }
 
 EntityLowHpTransition::EntityLowHpTransition(flecs::entity entity, float thres)
     : entity_(entity), thres_(thres) {}
 
-bool EntityLowHpTransition::isAvailable(flecs::world &, flecs::entity) const {
+bool EntityLowHpTransition::isAvailable(flecs::world &, flecs::entity) {
   bool res = false;
   entity_.get([&](const Hitpoints &hp) { res |= hp.hitpoints < thres_; });
   return res;
 }
 
-[[nodiscard]] std::unique_ptr<StateTransition> EntityLowHpTransition::Copy()
-    const {
+std::unique_ptr<StateTransition> EntityLowHpTransition::Copy() const {
   return std::make_unique<EntityLowHpTransition>(*this);
+}
+
+HealCraftedTransition::HealCraftedTransition(int heal_to_craft)
+    : heal_to_craft_(heal_to_craft) {}
+
+bool HealCraftedTransition::isAvailable(flecs::world &, flecs::entity entity) {
+  bool all_crafted = false;
+  entity.get([&](const HealCnt &heal_cnt) {
+    all_crafted = (heal_cnt.cnt >= heal_to_craft_);
+  });
+  return all_crafted;
+}
+
+std::unique_ptr<StateTransition> HealCraftedTransition::Copy() const {
+  return std::make_unique<HealCraftedTransition>(*this);
+}
+
+bool HealsPlantedTransition::isAvailable(flecs::world &, flecs::entity actor) {
+  bool planted = false;
+  actor.get([&](const HealCnt &cnt) { planted = cnt.cnt == 0; });
+}
+
+std::unique_ptr<StateTransition> HealsPlantedTransition::Copy() const {
+  return std::make_unique<HealsPlantedTransition>(*this);
+}
+
+void Timer::Start(time_t timeout) {
+  started_ = true;
+  start_time_ = time(nullptr);
+  timeout_ = timeout;
+}
+
+bool Timer::IsDown() const { return time(nullptr) - start_time_ >= timeout_; }
+
+bool Timer::IsStarted() const { return started_; }
+
+TimeoutTransition::TimeoutTransition(time_t timeout) : timeout_(timeout) {}
+
+bool TimeoutTransition::isAvailable(flecs::world &, flecs::entity) {
+  if (!timer_.IsStarted()) {
+    timer_.Start(timeout_);
+  }
+  return timer_.IsDown();
+}
+std::unique_ptr<StateTransition> TimeoutTransition::Copy() const {
+  return std::make_unique<TimeoutTransition>(timeout_);
 }

@@ -88,6 +88,10 @@ struct PowerupAmount {
   float amount = 0.f;
 };
 
+struct HealCnt {
+  int cnt = 0;
+};
+
 struct PlayerInput {
   bool left = false;
   bool right = false;

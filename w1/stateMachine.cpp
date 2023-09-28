@@ -4,7 +4,7 @@ void StateMachine::enter() {}
 
 void StateMachine::act(float dt, flecs::world &ecs, flecs::entity entity) {
   if (cur_state_id_ < states_.size()) {
-    for (const auto &transition : transitions_[cur_state_id_])
+    for (auto &transition : transitions_[cur_state_id_])
       if (transition.first.Get().isAvailable(ecs, entity)) {
         states_[cur_state_id_]->exit();
         cur_state_id_ = transition.second;

@@ -1,31 +1,23 @@
 #include "stateMachine.h"
 
-StateMachine::~StateMachine() {
-  for (State *state : states) delete state;
-}
+void StateMachine::enter() {}
 
 void StateMachine::act(float dt, flecs::world &ecs, flecs::entity entity) {
-  if (curStateIdx < states.size()) {
-    for (const auto &transition :
-         transitions[curStateIdx])
+  if (cur_state_id_ < states_.size()) {
+    for (const auto &transition : transitions_[cur_state_id_])
       if (transition.first.Get().isAvailable(ecs, entity)) {
-        states[curStateIdx]->exit();
-        curStateIdx = transition.second;
-        states[curStateIdx]->enter();
+        states_[cur_state_id_]->exit();
+        cur_state_id_ = transition.second;
+        states_[cur_state_id_]->enter();
         break;
       }
-    states[curStateIdx]->act(dt, ecs, entity);
+    states_[cur_state_id_]->act(dt, ecs, entity);
   } else
-    curStateIdx = 0;
+    cur_state_id_ = 0;
 }
 
-int StateMachine::addState(State *st) {
-  int idx = states.size();
-  states.push_back(st);
-  transitions.emplace_back();
-  return idx;
-}
+void StateMachine::exit() {}
 
 void StateMachine::addTransition(TransitionHandle trans, int from, int to) {
-  transitions[from].emplace_back(std::move(trans), to);
+  transitions_[from].emplace_back(std::move(trans), to);
 }

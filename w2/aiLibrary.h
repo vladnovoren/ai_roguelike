@@ -10,7 +10,7 @@ State *create_flee_from_enemy_state();
 State *create_patrol_state(float patrol_dist);
 State *create_nop_state();
 
-// transitions
+// transitions_
 StateTransition *create_enemy_available_transition(float dist);
 StateTransition *create_enemy_reachable_transition();
 StateTransition *create_hitpoints_less_than_transition(float thres);

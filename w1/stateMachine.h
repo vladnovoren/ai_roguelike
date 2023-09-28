@@ -6,9 +6,9 @@
 
 class State {
  public:
-  virtual void enter() const = 0;
-  virtual void exit() const = 0;
-  virtual void act(float dt, flecs::world &ecs, flecs::entity entity) const = 0;
+  virtual void enter() = 0;
+  virtual void exit() = 0;
+  virtual void act(float dt, flecs::world &ecs, flecs::entity entity) = 0;
 
   virtual ~State() = default;
 };
@@ -125,10 +125,9 @@ class TransitionHandle {
     trans_impl_ = std::move(other_move.trans_impl_);
     return *this;
   }
+
  public:
-  [[nodiscard]] const StateTransition& Get() const {
-    return *trans_impl_;
-  }
+  [[nodiscard]] const StateTransition &Get() const { return *trans_impl_; }
 
  public:
   TransitionHandle operator!() const {
@@ -147,23 +146,34 @@ class TransitionHandle {
   std::unique_ptr<StateTransition> trans_impl_;
 };
 
-class StateMachine {
-  int curStateIdx = 0;
-  std::vector<State *> states;
-  std::vector<std::vector<std::pair<TransitionHandle, int>>> transitions;
-
+class StateMachine : public State {
  public:
   StateMachine() = default;
-  StateMachine(const StateMachine &sm) = default;
+  StateMachine(const StateMachine &sm) = delete;
   StateMachine(StateMachine &&sm) = default;
 
-  ~StateMachine();
+  ~StateMachine() override = default;
 
-  StateMachine &operator=(const StateMachine &sm) = default;
+  StateMachine &operator=(const StateMachine &sm) = delete;
   StateMachine &operator=(StateMachine &&sm) = default;
 
-  void act(float dt, flecs::world &ecs, flecs::entity entity);
+  void enter() override;
+  void act(float dt, flecs::world &ecs, flecs::entity entity) override;
+  void exit() override;
 
-  int addState(State *st);
+  template <typename T, typename... Args>
+  int addState(Args &&...args) {
+    static_assert(std::is_base_of_v<State, T>);
+    states_.emplace_back(
+        std::unique_ptr<State>(new T(std::forward<Args>(args)...)));
+    transitions_.emplace_back();
+    return states_.size() - 1;
+  }
+
   void addTransition(TransitionHandle trans, int from, int to);
+
+ private:
+  int cur_state_id_ = 0;
+  std::vector<std::unique_ptr<State>> states_;
+  std::vector<std::vector<std::pair<TransitionHandle, int>>> transitions_;
 };

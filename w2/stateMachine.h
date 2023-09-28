@@ -20,9 +20,9 @@ public:
 
 class StateMachine
 {
-  size_t curStateIdx = 0;
-  std::vector<State*> states;
-  std::vector<std::vector<std::pair<StateTransition*, int>>> transitions;
+  size_t cur_state_id_ = 0;
+  std::vector<State*> states_;
+  std::vector<std::vector<std::pair<StateTransition*, int>>> transitions_;
 public:
   StateMachine() = default;
   StateMachine(const StateMachine &sm) = default;

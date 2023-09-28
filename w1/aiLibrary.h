@@ -4,28 +4,26 @@
 
 class AttackEnemyState : public State {
  public:
-  void enter() const override;
-  void exit() const override;
+  void enter() override;
+  void exit() override;
   void act(float /* dt*/, flecs::world & /*ecs*/,
-           flecs::entity /*entity*/) const override;
+           flecs::entity /*entity*/) override;
 };
 
 class MoveToEnemyState : public State {
  public:
-  void enter() const override;
-  void exit() const override;
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity entity) const override;
+  void enter() override;
+  void exit() override;
+  void act(float /* dt*/, flecs::world &ecs, flecs::entity entity) override;
 };
 
 class MoveToEntityState : public State {
  public:
   explicit MoveToEntityState(flecs::entity target);
 
-  void enter() const override;
-  void exit() const override;
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity actor) const override;
+  void enter() override;
+  void exit() override;
+  void act(float /* dt*/, flecs::world &ecs, flecs::entity actor) override;
 
  private:
   flecs::entity target_;
@@ -35,10 +33,9 @@ class HealEntityState : public State {
  public:
   explicit HealEntityState(flecs::entity target);
 
-  void enter() const override;
-  void exit() const override;
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity entity) const override;
+  void enter() override;
+  void exit() override;
+  void act(float /* dt*/, flecs::world &ecs, flecs::entity entity) override;
 
  private:
   flecs::entity target_;
@@ -46,19 +43,17 @@ class HealEntityState : public State {
 
 class FleeFromEnemyState : public State {
  public:
-  void enter() const override;
-  void exit() const override;
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity entity) const override;
+  void enter() override;
+  void exit() override;
+  void act(float /* dt*/, flecs::world &ecs, flecs::entity entity) override;
 };
 
 class PatrolState : public State {
  public:
   explicit PatrolState(float dist);
-  void enter() const override;
-  void exit() const override;
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity entity) const override;
+  void enter() override;
+  void exit() override;
+  void act(float /* dt*/, flecs::world &ecs, flecs::entity entity) override;
 
  private:
   float patrolDist;
@@ -66,15 +61,14 @@ class PatrolState : public State {
 
 class NopState : public State {
  public:
-  void enter() const override;
-  void exit() const override;
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity entity) const override;
+  void enter() override;
+  void exit() override;
+  void act(float /* dt*/, flecs::world &ecs, flecs::entity entity) override;
 };
 
 class TrueTransition : public StateTransition {
  public:
-  bool isAvailable(flecs::world&, flecs::entity) const override;
+  bool isAvailable(flecs::world &, flecs::entity) const override;
 
   [[nodiscard]] std::unique_ptr<StateTransition> Copy() const override;
 };

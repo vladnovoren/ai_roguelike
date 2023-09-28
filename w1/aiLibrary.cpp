@@ -98,14 +98,13 @@ static void on_closest_teammate_pos(flecs::world &ecs, flecs::entity entity,
   });
 }
 
-void AttackEnemyState::enter() const {}
-void AttackEnemyState::exit() const {}
-void AttackEnemyState::act(float, flecs::world &, flecs::entity) const {}
+void AttackEnemyState::enter() {}
+void AttackEnemyState::exit() {}
+void AttackEnemyState::act(float, flecs::world &, flecs::entity) {}
 
-void MoveToEnemyState::enter() const {}
-void MoveToEnemyState::exit() const {}
-void MoveToEnemyState::act(float, flecs::world &ecs,
-                           flecs::entity entity) const {
+void MoveToEnemyState::enter() {}
+void MoveToEnemyState::exit() {}
+void MoveToEnemyState::act(float, flecs::world &ecs, flecs::entity entity) {
   on_closest_enemy_pos(
       ecs, entity,
       [&](Action &a, const Position &pos, const Position &enemy_pos) {
@@ -115,26 +114,26 @@ void MoveToEnemyState::act(float, flecs::world &ecs,
 
 MoveToEntityState::MoveToEntityState(flecs::entity target) : target_(target) {}
 
-void MoveToEntityState::enter() const {}
-void MoveToEntityState::exit() const {}
+void MoveToEntityState::enter() {}
+void MoveToEntityState::exit() {}
 void MoveToEntityState::act(float /* dt*/, flecs::world &ecs,
-                            flecs::entity actor) const {
+                            flecs::entity actor) {
   MoveToEntity(actor, target_);
 }
 
 HealEntityState::HealEntityState(flecs::entity target) : target_(target) {}
 
-void HealEntityState::enter() const {}
-void HealEntityState::exit() const {}
+void HealEntityState::enter() {}
+void HealEntityState::exit() {}
 void HealEntityState::act(float /* dt*/, flecs::world &ecs,
-                          flecs::entity entity) const {
+                          flecs::entity entity) {
   HealEntity(entity, target_);
 }
 
-void FleeFromEnemyState::enter() const {}
-void FleeFromEnemyState::exit() const {}
+void FleeFromEnemyState::enter() {}
+void FleeFromEnemyState::exit() {}
 void FleeFromEnemyState::act(float /* dt*/, flecs::world &ecs,
-                             flecs::entity entity) const {
+                             flecs::entity entity) {
   on_closest_enemy_pos(
       ecs, entity,
       [&](Action &a, const Position &pos, const Position &enemy_pos) {
@@ -143,10 +142,9 @@ void FleeFromEnemyState::act(float /* dt*/, flecs::world &ecs,
 }
 
 PatrolState::PatrolState(float dist) : patrolDist(dist) {}
-void PatrolState::enter() const {}
-void PatrolState::exit() const {}
-void PatrolState::act(float /* dt*/, flecs::world &ecs,
-                      flecs::entity entity) const {
+void PatrolState::enter() {}
+void PatrolState::exit() {}
+void PatrolState::act(float /* dt*/, flecs::world &ecs, flecs::entity entity) {
   entity.set([&](const Position &pos, const PatrolPos &ppos, Action &a) {
     if (dist(pos, ppos) > patrolDist)
       a.action = move_towards(pos, ppos);  // do a recovery walk
@@ -157,10 +155,9 @@ void PatrolState::act(float /* dt*/, flecs::world &ecs,
   });
 }
 
-void NopState::enter() const {}
-void NopState::exit() const {}
-void NopState::act(float /* dt*/, flecs::world &ecs,
-                   flecs::entity entity) const {}
+void NopState::enter() {}
+void NopState::exit() {}
+void NopState::act(float /* dt*/, flecs::world &ecs, flecs::entity entity) {}
 
 bool TrueTransition::isAvailable(flecs::world &, flecs::entity) const {
   return true;

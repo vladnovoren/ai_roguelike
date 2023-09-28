@@ -178,7 +178,7 @@ State *create_nop_state()
   return new NopState();
 }
 
-// transitions
+// transitions_
 StateTransition *create_enemy_available_transition(float dist)
 {
   return new EnemyAvailableTransition(dist);

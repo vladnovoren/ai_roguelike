@@ -97,15 +97,15 @@ public:
 
 class HitpointsLessThanTransition : public StateTransition
 {
-  float threshold;
+  float thres_;
 public:
-  HitpointsLessThanTransition(float in_thres) : threshold(in_thres) {}
+  HitpointsLessThanTransition(float in_thres) : thres_(in_thres) {}
   bool isAvailable(flecs::world &, flecs::entity entity) const override
   {
     bool hitpointsThresholdReached = false;
     entity.get([&](const Hitpoints &hp)
     {
-      hitpointsThresholdReached |= hp.hitpoints < threshold;
+      hitpointsThresholdReached |= hp.hitpoints < thres_;
     });
     return hitpointsThresholdReached;
   }

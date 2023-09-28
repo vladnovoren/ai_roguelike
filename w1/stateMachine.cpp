@@ -2,17 +2,13 @@
 
 StateMachine::~StateMachine() {
   for (State *state : states) delete state;
-  states.clear();
-  for (auto &transList : transitions)
-    for (auto &transition : transList) delete transition.first;
-  transitions.clear();
 }
 
 void StateMachine::act(float dt, flecs::world &ecs, flecs::entity entity) {
   if (curStateIdx < states.size()) {
-    for (const std::pair<StateTransition *, int> &transition :
+    for (const auto &transition :
          transitions[curStateIdx])
-      if (transition.first->isAvailable(ecs, entity)) {
+      if (transition.first.Get().isAvailable(ecs, entity)) {
         states[curStateIdx]->exit();
         curStateIdx = transition.second;
         states[curStateIdx]->enter();
@@ -26,10 +22,10 @@ void StateMachine::act(float dt, flecs::world &ecs, flecs::entity entity) {
 int StateMachine::addState(State *st) {
   int idx = states.size();
   states.push_back(st);
-  transitions.push_back(std::vector<std::pair<StateTransition *, int>>());
+  transitions.emplace_back();
   return idx;
 }
 
-void StateMachine::addTransition(StateTransition *trans, int from, int to) {
-  transitions[from].push_back(std::make_pair(trans, to));
+void StateMachine::addTransition(TransitionHandle trans, int from, int to) {
+  transitions[from].emplace_back(std::move(trans), to);
 }

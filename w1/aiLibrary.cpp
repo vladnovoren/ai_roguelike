@@ -8,14 +8,6 @@
 #include "ecsTypes.h"
 #include "raylib.h"
 
-class AttackEnemyState : public State {
- public:
-  void enter() const override {}
-  void exit() const override {}
-  void act(float /* dt*/, flecs::world & /*ecs*/,
-           flecs::entity /*entity*/) const override {}
-};
-
 template <typename T>
 T sqr(T a) {
   return a * a;
@@ -38,6 +30,20 @@ static int move_towards(const T &from, const U &to) {
   if (abs(deltaX) > abs(deltaY))
     return deltaX > 0 ? EA_MOVE_RIGHT : EA_MOVE_LEFT;
   return deltaY < 0 ? EA_MOVE_UP : EA_MOVE_DOWN;
+}
+
+void MoveToEntity(flecs::entity actor, flecs::entity target) {
+  actor.set([&](Action &actor_action, Position &actor_pos) {
+    target.get([&](const Position &target_pos) {
+      actor_action.action = move_towards(actor_pos, target_pos);
+    });
+  });
+}
+
+void HealEntity(flecs::entity actor, flecs::entity target) {
+  target.set([&](Hitpoints &hp) {
+    actor.get([&](const HealerPoints &heal) { hp.hitpoints += heal.amount; });
+  });
 }
 
 static int inverse_move(int move) {
@@ -70,200 +76,152 @@ static void on_closest_enemy_pos(flecs::world &ecs, flecs::entity entity,
   });
 }
 
-class MoveToEnemyState : public State {
- public:
-  void enter() const override {}
-  void exit() const override {}
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity entity) const override {
-    on_closest_enemy_pos(
-        ecs, entity,
-        [&](Action &a, const Position &pos, const Position &enemy_pos) {
-          a.action = move_towards(pos, enemy_pos);
+template <typename Callable>
+static void on_closest_teammate_pos(flecs::world &ecs, flecs::entity entity,
+                                    Callable c) {
+  static auto teammatesQuery = ecs.query<const Position, const Team>();
+  entity.set([&](const Position &pos, const Team &t, Action &a) {
+    flecs::entity closest_teammate;
+    float closest_dist = FLT_MAX;
+    Position closest_pos;
+    teammatesQuery.each(
+        [&](flecs::entity teammate, const Position &tpos, const Team &tt) {
+          if (t.team != tt.team) return;
+          auto cur_dist = dist(tpos, pos);
+          if (cur_dist < closest_dist) {
+            closest_dist = cur_dist;
+            closest_pos = tpos;
+            closest_teammate = teammate;
+          }
         });
-  }
-};
+    if (ecs.is_valid(closest_teammate)) c(a, pos, closest_pos);
+  });
+}
 
-class FleeFromEnemyState : public State {
- public:
-  FleeFromEnemyState() {}
-  void enter() const override {}
-  void exit() const override {}
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity entity) const override {
-    on_closest_enemy_pos(
-        ecs, entity,
-        [&](Action &a, const Position &pos, const Position &enemy_pos) {
-          a.action = inverse_move(move_towards(pos, enemy_pos));
+void AttackEnemyState::enter() const {}
+void AttackEnemyState::exit() const {}
+void AttackEnemyState::act(float, flecs::world &, flecs::entity) const {}
+
+void MoveToEnemyState::enter() const {}
+void MoveToEnemyState::exit() const {}
+void MoveToEnemyState::act(float, flecs::world &ecs,
+                           flecs::entity entity) const {
+  on_closest_enemy_pos(
+      ecs, entity,
+      [&](Action &a, const Position &pos, const Position &enemy_pos) {
+        a.action = move_towards(pos, enemy_pos);
+      });
+}
+
+MoveToEntityState::MoveToEntityState(flecs::entity target) : target_(target) {}
+
+void MoveToEntityState::enter() const {}
+void MoveToEntityState::exit() const {}
+void MoveToEntityState::act(float /* dt*/, flecs::world &ecs,
+                            flecs::entity actor) const {
+  MoveToEntity(actor, target_);
+}
+
+HealEntityState::HealEntityState(flecs::entity target) : target_(target) {}
+
+void HealEntityState::enter() const {}
+void HealEntityState::exit() const {}
+void HealEntityState::act(float /* dt*/, flecs::world &ecs,
+                          flecs::entity entity) const {
+  HealEntity(entity, target_);
+}
+
+void FleeFromEnemyState::enter() const {}
+void FleeFromEnemyState::exit() const {}
+void FleeFromEnemyState::act(float /* dt*/, flecs::world &ecs,
+                             flecs::entity entity) const {
+  on_closest_enemy_pos(
+      ecs, entity,
+      [&](Action &a, const Position &pos, const Position &enemy_pos) {
+        a.action = inverse_move(move_towards(pos, enemy_pos));
+      });
+}
+
+PatrolState::PatrolState(float dist) : patrolDist(dist) {}
+void PatrolState::enter() const {}
+void PatrolState::exit() const {}
+void PatrolState::act(float /* dt*/, flecs::world &ecs,
+                      flecs::entity entity) const {
+  entity.set([&](const Position &pos, const PatrolPos &ppos, Action &a) {
+    if (dist(pos, ppos) > patrolDist)
+      a.action = move_towards(pos, ppos);  // do a recovery walk
+    else {
+      // do a random walk
+      a.action = GetRandomValue(EA_MOVE_START, EA_MOVE_END - 1);
+    }
+  });
+}
+
+void NopState::enter() const {}
+void NopState::exit() const {}
+void NopState::act(float /* dt*/, flecs::world &ecs,
+                   flecs::entity entity) const {}
+
+bool TrueTransition::isAvailable(flecs::world &, flecs::entity) const {
+  return true;
+}
+
+std::unique_ptr<StateTransition> TrueTransition::Copy() const {
+  return std::unique_ptr<TrueTransition>();
+}
+
+EnemyAvailableTransition::EnemyAvailableTransition(float in_dist)
+    : triggerDist(in_dist) {}
+
+bool EnemyAvailableTransition::isAvailable(flecs::world &ecs,
+                                           flecs::entity entity) const {
+  static auto enemiesQuery = ecs.query<const Position, const Team>();
+  bool enemiesFound = false;
+  entity.get([&](const Position &pos, const Team &t) {
+    enemiesQuery.each(
+        [&](flecs::entity enemy, const Position &e_pos, const Team &et) {
+          if (t.team == et.team) return;
+          float curDist = dist(e_pos, pos);
+          enemiesFound |= curDist <= triggerDist;
         });
-  }
-};
+  });
+  return enemiesFound;
+}
 
-class PatrolState : public State {
-  float patrolDist;
+std::unique_ptr<StateTransition> EnemyAvailableTransition::Copy() const {
+  return std::make_unique<EnemyAvailableTransition>(*this);
+}
 
- public:
-  PatrolState(float dist) : patrolDist(dist) {}
-  void enter() const override {}
-  void exit() const override {}
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity entity) const override {
-    entity.set([&](const Position &pos, const PatrolPos &ppos, Action &a) {
-      if (dist(pos, ppos) > patrolDist)
-        a.action = move_towards(pos, ppos);  // do a recovery walk
-      else {
-        // do a random walk
-        a.action = GetRandomValue(EA_MOVE_START, EA_MOVE_END - 1);
-      }
+EntityNearTransition::EntityNearTransition(flecs::entity target,
+                                           float thres_dist)
+    : target_(target), thres_dist_(thres_dist) {}
+
+bool EntityNearTransition::isAvailable(flecs::world &,
+                                       flecs::entity actor) const {
+  bool res = false;
+  actor.get([&](const Position &actor_pos) {
+    target_.get([&](const Position &target_pos) {
+      res = (dist(actor_pos, target_pos) <= thres_dist_);
     });
-  }
-};
-
-class SelfHealState : public State {
- public:
-  SelfHealState(float heal_points) : heal_points_(heal_points) {}
-
-  void enter() const override{};
-  void exit() const override{};
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity entity) const override {
-    entity.set([&](Hitpoints &hp) { hp.hitpoints += heal_points_; });
-  }
-
- private:
-  float heal_points_;
-};
-
-class NopState : public State {
- public:
-  void enter() const override {}
-  void exit() const override {}
-  void act(float /* dt*/, flecs::world &ecs,
-           flecs::entity entity) const override {}
-};
-
-class EnemyAvailableTransition : public StateTransition {
-  float triggerDist;
-
- public:
-  EnemyAvailableTransition(float in_dist) : triggerDist(in_dist) {}
-  bool isAvailable(flecs::world &ecs, flecs::entity entity) const override {
-    static auto enemiesQuery = ecs.query<const Position, const Team>();
-    bool enemiesFound = false;
-    entity.get([&](const Position &pos, const Team &t) {
-      enemiesQuery.each(
-          [&](flecs::entity enemy, const Position &epos, const Team &et) {
-            if (t.team == et.team) return;
-            float curDist = dist(epos, pos);
-            enemiesFound |= curDist <= triggerDist;
-          });
-    });
-    return enemiesFound;
-  }
-};
-
-class HitpointsLessThanTransition : public StateTransition {
-  float threshold;
-
- public:
-  HitpointsLessThanTransition(float in_thres) : threshold(in_thres) {}
-  bool isAvailable(flecs::world &ecs, flecs::entity entity) const override {
-    bool hitpointsThresholdReached = false;
-    entity.get([&](const Hitpoints &hp) {
-      hitpointsThresholdReached |= hp.hitpoints < threshold;
-    });
-    return hitpointsThresholdReached;
-  }
-};
-
-class EnemyReachableTransition : public StateTransition {
- public:
-  bool isAvailable(flecs::world &ecs, flecs::entity entity) const override {
-    return false;
-  }
-};
-
-class NegateTransition : public StateTransition {
-  const StateTransition *transition;  // we own it
- public:
-  NegateTransition(const StateTransition *in_trans) : transition(in_trans) {}
-  ~NegateTransition() override { delete transition; }
-
-  bool isAvailable(flecs::world &ecs, flecs::entity entity) const override {
-    return !transition->isAvailable(ecs, entity);
-  }
-};
-
-class AndTransition : public StateTransition {
-  const StateTransition *lhs;  // we own it
-  const StateTransition *rhs;  // we own it
- public:
-  AndTransition(const StateTransition *in_lhs, const StateTransition *in_rhs)
-      : lhs(in_lhs), rhs(in_rhs) {}
-  ~AndTransition() override {
-    delete lhs;
-    delete rhs;
-  }
-
-  bool isAvailable(flecs::world &ecs, flecs::entity entity) const override {
-    return lhs->isAvailable(ecs, entity) && rhs->isAvailable(ecs, entity);
-  }
-};
-
-class OrTransition : public StateTransition {
- public:
-  OrTransition(const StateTransition *in_lhs, const StateTransition *in_rhs)
-      : lhs_(in_lhs), rhs_(in_rhs) {}
-  ~OrTransition() override {
-    delete lhs_;
-    delete rhs_;
-  }
-
-  bool isAvailable(flecs::world &ecs, flecs::entity e) const override {
-    return lhs_->isAvailable(ecs, e) || lhs_->isAvailable(ecs, e);
-  }
-
- private:
-  const StateTransition *lhs_;
-  const StateTransition *rhs_;
-};
-
-// states
-State *create_attack_enemy_state() { return new AttackEnemyState(); }
-State *create_move_to_enemy_state() { return new MoveToEnemyState(); }
-
-State *create_flee_from_enemy_state() { return new FleeFromEnemyState(); }
-
-State *create_patrol_state(float patrol_dist) {
-  return new PatrolState(patrol_dist);
+  });
+  return res;
 }
 
-State *create_nop_state() { return new NopState(); }
-
-State *create_self_heal_state(float heal_points) {
-  return new SelfHealState(heal_points);
+[[nodiscard]] std::unique_ptr<StateTransition> EntityNearTransition::Copy()
+    const {
+  return std::make_unique<EntityNearTransition>(*this);
 }
 
-// transitions
-StateTransition *create_enemy_available_transition(float dist) {
-  return new EnemyAvailableTransition(dist);
+EntityLowHpTransition::EntityLowHpTransition(flecs::entity entity, float thres)
+    : entity_(entity), thres_(thres) {}
+
+bool EntityLowHpTransition::isAvailable(flecs::world &, flecs::entity) const {
+  bool res = false;
+  entity_.get([&](const Hitpoints &hp) { res |= hp.hitpoints < thres_; });
+  return res;
 }
 
-StateTransition *create_enemy_reachable_transition() {
-  return new EnemyReachableTransition();
+[[nodiscard]] std::unique_ptr<StateTransition> EntityLowHpTransition::Copy()
+    const {
+  return std::make_unique<EntityLowHpTransition>(*this);
 }
-
-StateTransition *create_hitpoints_less_than_transition(float thres) {
-  return new HitpointsLessThanTransition(thres);
-}
-
-StateTransition *create_negate_transition(StateTransition *in) {
-  return new NegateTransition(in);
-}
-StateTransition *create_and_transition(StateTransition *lhs,
-                                       StateTransition *rhs) {
-  return new AndTransition(lhs, rhs);
-}
-
-StateTransition *create_or_transition(StateTransition *lhs,
-                                      StateTransition *rhs) {}

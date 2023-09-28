@@ -80,6 +80,10 @@ struct HealAmount {
   float amount = 0.f;
 };
 
+struct HealerPoints {
+  float amount = 0.f;
+};
+
 struct PowerupAmount {
   float amount = 0.f;
 };

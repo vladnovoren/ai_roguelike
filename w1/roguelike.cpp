@@ -6,86 +6,105 @@
 #include "stateMachine.h"
 
 static void add_patrol_attack_flee_sm(flecs::entity entity) {
-  entity.get([](StateMachine &sm) {
-    int patrol = sm.addState(create_patrol_state(3.f));
-    int moveToEnemy = sm.addState(create_move_to_enemy_state());
-    int fleeFromEnemy = sm.addState(create_flee_from_enemy_state());
+  entity.get([&](StateMachine &sm) {
+    int patrol = sm.addState(new PatrolState(3.f));
+    int moveToEnemy = sm.addState(new MoveToEnemyState());
+    int fleeFromEnemy = sm.addState(new FleeFromEnemyState());
 
-    sm.addTransition(create_enemy_available_transition(3.f), patrol,
-                     moveToEnemy);
-    sm.addTransition(
-        create_negate_transition(create_enemy_available_transition(5.f)),
-        moveToEnemy, patrol);
+    auto enemy_available_3 =
+        TransitionHandle::Create<EnemyAvailableTransition>(3.f);
+    auto enemy_available_5 =
+        TransitionHandle::Create<EnemyAvailableTransition>(5.f);
+    auto enemy_available_7 =
+        TransitionHandle::Create<EnemyAvailableTransition>(7.f);
+    auto hitpoints_less =
+        TransitionHandle::Create<EntityLowHpTransition>(entity, 60.f);
 
-    sm.addTransition(
-        create_and_transition(create_hitpoints_less_than_transition(60.f),
-                              create_enemy_available_transition(5.f)),
-        moveToEnemy, fleeFromEnemy);
-    sm.addTransition(
-        create_and_transition(create_hitpoints_less_than_transition(60.f),
-                              create_enemy_available_transition(3.f)),
-        patrol, fleeFromEnemy);
-
-    sm.addTransition(
-        create_negate_transition(create_enemy_available_transition(7.f)),
-        fleeFromEnemy, patrol);
+    sm.addTransition(enemy_available_3, patrol, moveToEnemy);
+    sm.addTransition(!enemy_available_5, moveToEnemy, patrol);
+    sm.addTransition(hitpoints_less && enemy_available_5, moveToEnemy,
+                     fleeFromEnemy);
+    sm.addTransition(hitpoints_less && enemy_available_3, patrol,
+                     fleeFromEnemy);
+    sm.addTransition(!enemy_available_7, fleeFromEnemy, patrol);
   });
 }
 
 static void add_patrol_flee_sm(flecs::entity entity) {
   entity.get([](StateMachine &sm) {
-    int patrol = sm.addState(create_patrol_state(3.f));
-    int fleeFromEnemy = sm.addState(create_flee_from_enemy_state());
+    int patrol = sm.addState(new PatrolState(3.f));
+    int fleeFromEnemy = sm.addState(new FleeFromEnemyState());
 
-    sm.addTransition(create_enemy_available_transition(3.f), patrol,
-                     fleeFromEnemy);
-    sm.addTransition(
-        create_negate_transition(create_enemy_available_transition(5.f)),
-        fleeFromEnemy, patrol);
+    sm.addTransition(TransitionHandle::Create<EnemyAvailableTransition>(3.f),
+                     patrol, fleeFromEnemy);
+    sm.addTransition(!TransitionHandle::Create<EnemyAvailableTransition>(5.f),
+                     fleeFromEnemy, patrol);
   });
 }
 
 static void add_attack_sm(flecs::entity entity) {
-  entity.get(
-      [](StateMachine &sm) { sm.addState(create_move_to_enemy_state()); });
+  entity.get([](StateMachine &sm) { sm.addState(new MoveToEnemyState()); });
 }
 
 static void AddBerzerkStateMachine(flecs::entity entity) {
   entity.get([](StateMachine &sm) {
-    auto patrol = sm.addState(create_patrol_state(3.f));
-    auto move_to_enemy = sm.addState(create_move_to_enemy_state());
+    auto patrol = sm.addState(new PatrolState(3.f));
+    auto move_to_enemy = sm.addState(new MoveToEnemyState());
 
-    sm.addTransition(create_enemy_available_transition(5.f), patrol,
-                     move_to_enemy);
-    sm.addTransition(
-        create_negate_transition(create_enemy_available_transition(5.f)),
-        move_to_enemy, patrol);
+    auto enemy_available =
+        TransitionHandle::Create<EnemyAvailableTransition>(5.f);
+
+    sm.addTransition(enemy_available, patrol, move_to_enemy);
+    sm.addTransition(!enemy_available, move_to_enemy, patrol);
   });
 }
 
-static void AddHealingMonsterStateMachine(flecs::entity entity, float hp_thres,
-                                          float heal_hp) {
+static void AddHealingMonsterStateMachine(flecs::entity entity,
+                                          float hp_thres) {
   entity.get([&](StateMachine &sm) {
-    auto patrol = sm.addState(create_patrol_state(3.f));
-    auto move_to_enemy = sm.addState(create_move_to_enemy_state());
-    auto self_heal = sm.addState(create_self_heal_state(heal_hp));
+    auto patrol = sm.addState(new PatrolState(3.f));
+    auto move_to_enemy = sm.addState(new MoveToEnemyState());
+    auto self_heal = sm.addState(new HealEntityState(entity));
 
-    sm.addTransition(create_enemy_available_transition(5.f), patrol,
-                     move_to_enemy);
-    sm.addTransition(
-        create_negate_transition(create_enemy_available_transition(5.f)),
-        move_to_enemy, patrol);
+    auto enemy_near = TransitionHandle::Create<EnemyAvailableTransition>(5.f);
+    auto low_hp =
+        TransitionHandle::Create<EntityLowHpTransition>(entity, hp_thres);
 
-    sm.addTransition(create_hitpoints_less_than_transition(hp_thres), patrol,
-                     self_heal);
-    sm.addTransition(
-        create_negate_transition(create_enemy_available_transition(5.f)),
-        self_heal, patrol);
+    sm.addTransition(enemy_near, patrol, move_to_enemy);
+    sm.addTransition(!enemy_near, move_to_enemy, patrol);
 
-    sm.addTransition(create_enemy_available_transition(5.f), self_heal,
-                     move_to_enemy);
-    sm.addTransition(create_hitpoints_less_than_transition(hp_thres),
-                     move_to_enemy, self_heal);
+    sm.addTransition(low_hp, patrol, self_heal);
+    sm.addTransition(!enemy_near, self_heal, patrol);
+
+    sm.addTransition(enemy_near, self_heal, move_to_enemy);
+    sm.addTransition(low_hp, move_to_enemy, self_heal);
+  });
+}
+
+static void AddSwordsmanHealerStateMachine(flecs::entity entity,
+                                           flecs::entity target,
+                                           float hp_thres) {
+  entity.get([&](StateMachine &sm) {
+    auto move_to_target = sm.addState(new MoveToEntityState(target));
+    auto move_to_enemy = sm.addState(new MoveToEnemyState());
+    auto heal = sm.addState(new HealEntityState(target));
+
+    auto enemy_near = TransitionHandle::Create<EnemyAvailableTransition>(5.f);
+    auto target_near =
+        TransitionHandle::Create<EntityNearTransition>(target, 3.f);
+    auto low_hp =
+        TransitionHandle::Create<EntityLowHpTransition>(target, hp_thres);
+    auto true_trans = TransitionHandle::Create<TrueTransition>();
+
+    sm.addTransition(enemy_near && !low_hp, move_to_target, move_to_enemy);
+    sm.addTransition((low_hp && !target_near) || !enemy_near, move_to_enemy,
+                     move_to_target);
+
+    sm.addTransition(target_near && low_hp, move_to_target, heal);
+    sm.addTransition(true_trans, heal, move_to_target);
+
+    sm.addTransition(enemy_near, heal, move_to_enemy);
+    sm.addTransition(target_near && low_hp, move_to_enemy, heal);
   });
 }
 
@@ -104,6 +123,22 @@ static flecs::entity create_monster(flecs::world &ecs, int x, int y,
       .set(MeleeDamage{20.f});
 }
 
+static flecs::entity create_heal_monster(flecs::world &ecs, int x, int y,
+                                         Color color) {
+  return ecs.entity()
+      .set(Position{x, y})
+      .set(MovePos{x, y})
+      .set(PatrolPos{x, y})
+      .set(Hitpoints{100.f})
+      .set(Action{EA_NOP})
+      .set(Color{color})
+      .set(StateMachine{})
+      .set(Team{1})
+      .set(NumActions{1, 0})
+      .set(MeleeDamage{20.f})
+      .set(HealerPoints(50.f));
+}
+
 static void create_player(flecs::world &ecs, int x, int y) {
   ecs.entity("player")
       .set(Position{x, y})
@@ -116,6 +151,21 @@ static void create_player(flecs::world &ecs, int x, int y) {
       .set(PlayerInput{})
       .set(NumActions{2, 0})
       .set(MeleeDamage{50.f});
+}
+
+static flecs::entity create_heal_swordsman(flecs::world &ecs, int x, int y,
+                                           Color color) {
+  return ecs.entity()
+      .set(Position{x, y})
+      .set(MovePos{x, y})
+      .set(Hitpoints{100.f})
+      .set(Action{EA_NOP})
+      .set(Color{color})
+      .set(StateMachine{})
+      .set(Team{0})
+      .set(NumActions{1, 0})
+      .set(MeleeDamage{40.f})
+      .set(HealerPoints(20.f));
 }
 
 static void create_heal(flecs::world &ecs, int x, int y, float amount) {
@@ -168,9 +218,13 @@ static void register_roguelike_systems(flecs::world &ecs) {
 void init_roguelike(flecs::world &ecs) {
   register_roguelike_systems(ecs);
 
+  auto player = ecs.lookup("player");
+
   AddBerzerkStateMachine(create_monster(ecs, 5, 5, GetColor(0xff0000ff)));
   AddHealingMonsterStateMachine(
-      (create_monster(ecs, 10, -5, GetColor(0x00ff00ff))), 60, 30);
+      create_heal_monster(ecs, 10, -5, GetColor(0x0000ffff)), 30);
+  AddSwordsmanHealerStateMachine(
+      create_heal_swordsman(ecs, 10, 5, GetColor(0x00ff00ff)), player, 30);
 
   create_player(ecs, 0, 0);
   //

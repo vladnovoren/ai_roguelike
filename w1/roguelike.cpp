@@ -136,7 +136,7 @@ static flecs::entity create_heal_monster(flecs::world &ecs, int x, int y,
       .set(Team{1})
       .set(NumActions{1, 0})
       .set(MeleeDamage{20.f})
-      .set(HealerPoints(50.f));
+      .set(HealerPoints{50.f});
 }
 
 static void create_player(flecs::world &ecs, int x, int y) {
@@ -165,7 +165,7 @@ static flecs::entity create_heal_swordsman(flecs::world &ecs, int x, int y,
       .set(Team{0})
       .set(NumActions{1, 0})
       .set(MeleeDamage{40.f})
-      .set(HealerPoints(20.f));
+      .set(HealerPoints{20.f});
 }
 
 static void create_heal(flecs::world &ecs, int x, int y, float amount) {

@@ -25,4 +25,5 @@ BehNode *is_low_hp(float thres);
 BehNode *find_enemy(flecs::entity entity, float dist, const char *bb_name);
 BehNode *flee(flecs::entity entity, const char *bb_name);
 BehNode *patrol(flecs::entity entity, float patrol_dist, const char *bb_name);
-
+BehNode* find_buff(flecs::entity entity, const char* bb_name);
+BehNode* get_next_waypoint(flecs::entity entity, const char* bb_name);

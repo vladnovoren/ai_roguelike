@@ -198,6 +198,7 @@ StateTransition *create_negate_transition(StateTransition *in)
 {
   return new NegateTransition(in);
 }
+
 StateTransition *create_and_transition(StateTransition *lhs, StateTransition *rhs)
 {
   return new AndTransition(lhs, rhs);

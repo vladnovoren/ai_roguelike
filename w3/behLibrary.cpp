@@ -113,6 +113,15 @@ struct MoveToEntity : public BehNode
   }
 };
 
+struct RandomMove : public BehNode {
+  BehResult update(flecs::world&, flecs::entity ent, Blackboard&) override {
+    ent.set([](Action& action, const Position& position) {
+      action.action = GetRandomValue(EA_MOVE_START, EA_MOVE_END - 1);
+    });
+    return BEH_RUNNING;
+  }
+};
+
 struct IsLowHp : public BehNode
 {
   float threshold = 0.f;
@@ -274,6 +283,11 @@ BehNode *move_to_entity(flecs::entity entity, const char *bb_name)
   return new MoveToEntity(entity, bb_name);
 }
 
+BehNode* random_move()
+{
+  return new RandomMove();
+}
+
 BehNode *is_low_hp(float thres)
 {
   return new IsLowHp(thres);
@@ -298,5 +312,3 @@ BehNode *patch_up(float thres)
 {
   return new PatchUp(thres);
 }
-
-

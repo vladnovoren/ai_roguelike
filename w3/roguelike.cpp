@@ -1,5 +1,6 @@
 #include "roguelike.h"
 
+#include <algorithm>
 #include <functional>
 
 #include "aiLibrary.h"
@@ -46,17 +47,28 @@ static void create_monster_explorer_beh(
       {std::make_pair(random_move(), [](Blackboard &) { return 50.0f; }),
        std::make_pair(move_to_entity(ent, "base"),
                       [](Blackboard &bb) {
-                        auto dist_to_tm = bb.get<float>("dist_to_tm");
-                        auto dist_to_base = bb.get<float>("dist_to_base");
-                        return 80.0f - dist_to_base * dist_to_tm;
+                        auto ally_dist = bb.get<float>("ally_dist");
+                        auto base_dist = bb.get<float>("base_dist");
+                        return 2 * (std::pow(ally_dist, 2u) +
+                                    std::pow(base_dist, 2u));
+                        //                        return 4 * std::max(0.f, 5.f -
+                        //                        ally_dist) *
+                        //                               std::max(0.f, 5.f -
+                        //                               base_dist);
                       }),
        std::make_pair(sequence({find_enemy(ent, 10.0f, "attack_enemy"),
                                 move_to_entity(ent, "attack_enemy")}),
                       [](Blackboard &bb) {
-                        auto dist_to_base = bb.get<float>("dist_to_base");
-                        auto dist_to_enemy = bb.get<float>("dist_to_enemy");
-                        return 50 + dist_to_enemy - dist_to_base;
+                        auto base_dist = bb.get<float>("base_dist");
+                        auto enemy_dist = bb.get<float>("enemyDist");
+                        return std::max(
+                            0.f, 100.f - (float)std::pow(enemy_dist * base_dist,
+                                                         4u));
+                        //                        return 50.f + 10.f *
+                        //                        (enemy_dist - base_dist);
                       })});
+  ent.add<WorldInfoGatherer>();
+  ent.set(BehaviourTree{root});
 }
 
 static void create_minotaur_beh(flecs::entity e) {
@@ -169,6 +181,8 @@ void init_roguelike(flecs::world &ecs) {
   ecs.entity("swordsman_tex")
       .set(Texture2D{LoadTexture("assets/swordsman.png")});
   ecs.entity("minotaur_tex").set(Texture2D{LoadTexture("assets/minotaur.png")});
+  ecs.entity("explorer_tex")
+      .set(Texture2D{LoadTexture("assets/explorer.png")});
 
   ecs.observer<Texture2D>().event(flecs::OnRemove).each([](Texture2D texture) {
     UnloadTexture(texture);
@@ -182,6 +196,10 @@ void init_roguelike(flecs::world &ecs) {
       ecs, -5, -5, Color{0x11, 0x11, 0x11, 0xff}, "minotaur_tex"));
   create_fuzzy_monster_beh(
       create_monster(ecs, -5, 5, Color{0, 255, 0, 255}, "minotaur_tex"));
+  create_monster_explorer_beh(
+      create_monster(ecs, 10, 10, Color{0xff, 0xff, 0xff, 0xff},
+                     "explorer_tex"),
+      &utility_selector);
 
   create_player(ecs, 0, 0, "swordsman_tex");
 
@@ -328,10 +346,17 @@ static void gather_world_info(flecs::world &ecs) {
     push_info_to_bb(bb, "hp", hp.hitpoints);
     float numAllies = 0;  // note float
     float closestEnemyDist = 100.f;
+    float closestAllyDist = 100.f;
+
     alliesQuery.each([&](const Position &apos, const Team &ateam) {
       constexpr float limitDist = 5.f;
-      if (team.team == ateam.team && dist_sq(pos, apos) < sqr(limitDist))
+      auto dist_ally = dist_sq(pos, apos);
+      if (team.team == ateam.team && dist_ally < sqr(limitDist)) {
         numAllies += 1.f;
+        if (dist_ally < closestAllyDist) {
+          closestAllyDist = dist_ally;
+        }
+      }
       if (team.team != ateam.team) {
         const float enemyDist = dist(pos, apos);
         if (enemyDist < closestEnemyDist) closestEnemyDist = enemyDist;
@@ -339,6 +364,7 @@ static void gather_world_info(flecs::world &ecs) {
     });
     push_info_to_bb(bb, "alliesNum", numAllies);
     push_info_to_bb(bb, "enemyDist", closestEnemyDist);
+    push_info_to_bb(bb, "ally_dist", closestAllyDist);
   });
 }
 

@@ -4,7 +4,6 @@
 #include "math.h"
 #include "raylib.h"
 #include "blackboard.h"
-#include <algorithm>
 
 struct CompoundNode : public BehNode
 {

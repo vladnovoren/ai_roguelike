@@ -28,6 +28,8 @@ BehNode *utility_selector(
     const std::vector<std::pair<BehNode *, utility_function>> &nodes);
 BehNode *random_utility_selector(
     const std::vector<std::pair<BehNode *, utility_function>> &nodes);
+BehNode *inertial_utility_selector(
+    const std::vector<std::pair<BehNode *, utility_function>> &nodes);
 
 BehNode *move_to_entity(flecs::entity entity, const char *bb_name);
 BehNode *is_low_hp(float thres);

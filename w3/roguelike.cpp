@@ -205,7 +205,8 @@ void init_roguelike(flecs::world &ecs) {
                      "explorer_tex"),
       Position{10, 10},
 //      &utility_selector
-      &random_utility_selector
+//      &random_utility_selector
+      &inertial_utility_selector
       );
 
   create_player(ecs, 0, 0, "swordsman_tex");

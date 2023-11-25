@@ -96,6 +96,55 @@ struct RandomUtilitySelector : public UtilitySelector {
   }
 };
 
+struct InertialUtilitySelector : public UtilitySelector {
+ public:
+  explicit InertialUtilitySelector(std::vector<float> inertias)
+      : inertias(std::move(inertias)) {}
+
+ private:
+  std::vector<std::pair<float, size_t>> GetSortedScores(Blackboard& bb) {
+    std::vector<std::pair<float, size_t>> scores;
+    for (size_t i = 0; i < utilityNodes.size(); ++i) {
+      const float utilityScore = utilityNodes[i].second(bb) + inertias[i];
+      scores.emplace_back(utilityScore, i);
+    }
+    std::sort(scores.begin(), scores.end(),
+              [](auto &lhs, auto &rhs) { return lhs.first > rhs.first; });
+    return scores;
+  }
+
+ public:
+  BehResult update(flecs::world &ecs, flecs::entity entity,
+                   Blackboard &bb) override {
+    auto scores = GetSortedScores(bb);
+    for (const auto &node : scores) {
+      size_t node_id = node.second;
+      auto res = utilityNodes[node_id].first->update(ecs, entity, bb);
+      if (res != BEH_FAIL) {
+        UpdateInertia(node_id);
+        return res;
+      }
+    }
+    return BEH_FAIL;
+  }
+
+ private:
+  void UpdateInertia(size_t node_id) {
+    float prev = inertias[node_id];
+    std::ranges::fill(inertias, 0);
+    if (prev > 0)
+      inertias[node_id] = prev - cooldown;
+    else
+      inertias[node_id] = prev + inertia_amount;
+  }
+
+ private:
+  std::vector<float> inertias;
+
+  float inertia_amount = 100.f;
+  float cooldown = 10.f;
+};
+
 struct MoveToEntity : public BehNode {
   size_t entityBb = size_t(-1);  // wraps to 0xff...
   MoveToEntity(flecs::entity entity, const char *bb_name) {
@@ -267,6 +316,14 @@ BehNode *utility_selector(
 BehNode *random_utility_selector(
     const std::vector<std::pair<BehNode *, utility_function>> &nodes) {
   auto selector = new RandomUtilitySelector;
+  selector->utilityNodes = nodes;
+  return selector;
+}
+
+BehNode *inertial_utility_selector(
+    const std::vector<std::pair<BehNode *, utility_function>> &nodes) {
+  std::vector<float> inertia(nodes.size(), 0.f);
+  auto selector = new InertialUtilitySelector(inertia);
   selector->utilityNodes = nodes;
   return selector;
 }

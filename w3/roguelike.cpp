@@ -204,7 +204,9 @@ void init_roguelike(flecs::world &ecs) {
       create_monster(ecs, 10, 10, Color{0xff, 0xff, 0xff, 0xff},
                      "explorer_tex"),
       Position{10, 10},
-      &utility_selector);
+//      &utility_selector
+      &random_utility_selector
+      );
 
   create_player(ecs, 0, 0, "swordsman_tex");
 

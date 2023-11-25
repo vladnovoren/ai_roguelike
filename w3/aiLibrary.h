@@ -1,8 +1,9 @@
 #pragma once
 
 #include <functional>
-#include "stateMachine.h"
+
 #include "behaviourTree.h"
+#include "stateMachine.h"
 
 // states
 State *create_attack_enemy_state();
@@ -16,13 +17,17 @@ StateTransition *create_enemy_available_transition(float dist);
 StateTransition *create_enemy_reachable_transition();
 StateTransition *create_hitpoints_less_than_transition(float thres);
 StateTransition *create_negate_transition(StateTransition *in);
-StateTransition *create_and_transition(StateTransition *lhs, StateTransition *rhs);
+StateTransition *create_and_transition(StateTransition *lhs,
+                                       StateTransition *rhs);
 
-using utility_function = std::function<float(Blackboard&)>;
+using utility_function = std::function<float(Blackboard &)>;
 
-BehNode *sequence(const std::vector<BehNode*> &nodes);
-BehNode *selector(const std::vector<BehNode*> &nodes);
-BehNode *utility_selector(const std::vector<std::pair<BehNode*, utility_function>> &nodes);
+BehNode *sequence(const std::vector<BehNode *> &nodes);
+BehNode *selector(const std::vector<BehNode *> &nodes);
+BehNode *utility_selector(
+    const std::vector<std::pair<BehNode *, utility_function>> &nodes);
+BehNode *random_utility_selector(
+    const std::vector<std::pair<BehNode *, utility_function>> &nodes);
 
 BehNode *move_to_entity(flecs::entity entity, const char *bb_name);
 BehNode *is_low_hp(float thres);
@@ -31,4 +36,3 @@ BehNode *flee(flecs::entity entity, const char *bb_name);
 BehNode *patrol(flecs::entity entity, float patrol_dist, const char *bb_name);
 BehNode *patch_up(float thres);
 BehNode *random_move();
-

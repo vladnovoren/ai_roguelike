@@ -38,17 +38,21 @@ static void create_fuzzy_monster_beh(flecs::entity e) {
 
 static void create_monster_explorer_beh(
     flecs::entity ent,
+    Position base_position,
     const std::function<
         BehNode *(const std::vector<std::pair<BehNode *, utility_function>> &)>
         &utility_selector_gtor) {
-  ent.set(Blackboard{});
+  Blackboard bb;
+  size_t base_position_id = bb.regName<Position>("base_position");
+  bb.set(base_position_id, base_position);
+  ent.set(Blackboard{bb});
 
   auto root = utility_selector_gtor(
       {std::make_pair(random_move(), [](Blackboard &) { return 50.0f; }),
        std::make_pair(move_to_entity(ent, "base"),
                       [](Blackboard &bb) {
-                        auto ally_dist = bb.get<float>("ally_dist");
-                        auto base_dist = bb.get<float>("base_dist");
+                        auto ally_dist = bb.get<float>("allyDist");
+                        auto base_dist = bb.get<float>("baseDist");
                         return 2 * (std::pow(ally_dist, 2u) +
                                     std::pow(base_dist, 2u));
                         //                        return 4 * std::max(0.f, 5.f -
@@ -59,7 +63,7 @@ static void create_monster_explorer_beh(
        std::make_pair(sequence({find_enemy(ent, 10.0f, "attack_enemy"),
                                 move_to_entity(ent, "attack_enemy")}),
                       [](Blackboard &bb) {
-                        auto base_dist = bb.get<float>("base_dist");
+                        auto base_dist = bb.get<float>("baseDist");
                         auto enemy_dist = bb.get<float>("enemyDist");
                         return std::max(
                             0.f, 100.f - (float)std::pow(enemy_dist * base_dist,
@@ -199,6 +203,7 @@ void init_roguelike(flecs::world &ecs) {
   create_monster_explorer_beh(
       create_monster(ecs, 10, 10, Color{0xff, 0xff, 0xff, 0xff},
                      "explorer_tex"),
+      Position{10, 10},
       &utility_selector);
 
   create_player(ecs, 0, 0, "swordsman_tex");
@@ -348,6 +353,7 @@ static void gather_world_info(flecs::world &ecs) {
     float closestEnemyDist = 100.f;
     float closestAllyDist = 100.f;
 
+    auto base_pos = bb.get<Position>("base_position");
     alliesQuery.each([&](const Position &apos, const Team &ateam) {
       constexpr float limitDist = 5.f;
       auto dist_ally = dist_sq(pos, apos);
@@ -364,7 +370,8 @@ static void gather_world_info(flecs::world &ecs) {
     });
     push_info_to_bb(bb, "alliesNum", numAllies);
     push_info_to_bb(bb, "enemyDist", closestEnemyDist);
-    push_info_to_bb(bb, "ally_dist", closestAllyDist);
+    push_info_to_bb(bb, "allyDist", closestAllyDist);
+    push_info_to_bb(bb, "baseDist", dist(base_pos, pos));
   });
 }
 

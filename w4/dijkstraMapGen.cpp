@@ -1,6 +1,21 @@
 #include "dijkstraMapGen.h"
 #include "ecsTypes.h"
 #include "dungeonUtils.h"
+#include "math.h"
+
+static bool is_visible(const DungeonData &dd, int x1, int y1, int x2, int y2) {
+  auto cur_x = x1, cur_y = y1;
+  while (cur_x != x2 || cur_y != y2) {
+    if (dd.tiles[cur_y * dd.width + cur_x] == dungeon::wall) return false;
+    int delta_x = x2 - cur_x;
+    int delta_y = y2 - cur_y;
+    if (abs(delta_x) > abs(delta_y))
+      cur_x += signum(delta_x);
+    else
+      cur_y += signum(delta_y);
+  }
+  return true;
+}
 
 template<typename Callable>
 static void query_dungeon_data(flecs::world &ecs, Callable c)
@@ -66,15 +81,29 @@ static void process_dmap(std::vector<float> &map, const DungeonData &dd)
   }
 }
 
-void dmaps::gen_player_approach_map(flecs::world &ecs, std::vector<float> &map)
+void dmaps::gen_player_approach_map(flecs::world &ecs, std::vector<float> &map,
+                                    int range)
 {
   query_dungeon_data(ecs, [&](const DungeonData &dd)
   {
     init_tiles(map, dd);
     query_characters_positions(ecs, [&](const Position &pos, const Team &t)
     {
-      if (t.team == 0) // player team hardcode
-        map[pos.y * dd.width + pos.x] = 0.f;
+      if (t.team == 0) {
+        for (int add_x = -range; add_x <= range; ++add_x) {
+          for (int add_y = -range; add_y <= range; ++add_y) {
+            int tx = pos.x + add_x,
+                ty = pos.y + add_y;
+            if (tx >= 0 && tx < dd.width &&
+                ty >= 0 && ty < dd.height &&
+                dd.tiles[ty * dd.width + tx] == dungeon::floor &&
+                is_visible(dd, pos.x, pos.y, tx, ty) &&
+                L1_dist(pos.x, pos.y, tx, ty) <= range) {
+                map[ty * dd.width + tx] = 0;
+            }
+          }
+        }
+      }
     });
     process_dmap(map, dd);
   });
@@ -106,3 +135,32 @@ void dmaps::gen_hive_pack_map(flecs::world &ecs, std::vector<float> &map)
   });
 }
 
+void dmaps::gen_explore_map(flecs::world &ecs, std::vector<float> &map) {
+  static auto tile_query = ecs.query<const Position, const IsExplored>();
+  query_dungeon_data(ecs, [&](const DungeonData& dd) {
+    init_tiles(map, dd);
+    tile_query.each([&](const Position& pos, const IsExplored& explored) {
+      if (!explored.value && dungeon::is_tile_walkable(ecs, pos)) {
+        map[pos.y * dd.width + pos.x] = 0.f;
+      }
+    });
+    process_dmap(map, dd);
+  });
+}
+
+void dmaps::gen_ally_map(flecs::world &ecs, std::vector<float> &map,
+                         flecs::entity target) {
+  static auto ally_query = ecs.query<const Position, const Team>();
+  query_dungeon_data(ecs, [&](const DungeonData& dd) {
+    init_tiles(map, dd);
+    target.get([&](const Team& targetTeam) {
+      ally_query.each(
+          [&](flecs::entity e, const Position& pos, const Team& team) {
+            if (e != target && team.team == targetTeam.team) {
+              map[pos.y * dd.width + pos.x] = 0.f;
+            }
+          });
+    });
+    process_dmap(map, dd);
+  });
+}

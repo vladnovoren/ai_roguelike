@@ -165,3 +165,7 @@ struct DmapWeights
 };
 
 struct Hive {};
+
+struct IsExplored {
+  bool value = false;
+};

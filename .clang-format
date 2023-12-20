@@ -1,2 +1,4 @@
 BasedOnStyle: Google
 ColumnLimit: 80
+PointerAlignment: Left
+ReferenceAlignment: Left

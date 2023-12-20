@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <functional>
+#include <flecs.h>
 
 // TODO: make a lot of seprate files
 struct Position;
@@ -73,7 +75,8 @@ enum Actions
   EA_ATTACK = EA_MOVE_END,
   EA_HEAL_SELF,
   EA_PASS,
-  EA_NUM
+  EA_NUM,
+  EA_AUTO_EXPLORE
 };
 
 struct Action
@@ -109,6 +112,7 @@ struct PlayerInput
   bool up = false;
   bool down = false;
   bool passed = false;
+  bool e = false;
 };
 
 struct Symbol
@@ -160,6 +164,8 @@ struct DmapWeights
   {
     float mult = 1.f;
     float pow = 1.f;
+
+    std::function<bool(flecs::entity)> pred = [](flecs::entity){return true;};
   };
   std::unordered_map<std::string, WtData> weights;
 };
@@ -168,4 +174,8 @@ struct Hive {};
 
 struct IsExplored {
   bool value = false;
+};
+
+struct AllyMapName {
+  std::string value;
 };

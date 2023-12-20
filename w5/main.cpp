@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include <flecs.h>
 #include <algorithm>
+#include <iostream>
 #include "ecsTypes.h"
 #include "roguelike.h"
 #include "dungeonGen.h"
@@ -87,7 +88,6 @@ static void debug_enemy_planner()
 
     std::vector<goap::PlanStep> plan;
     goap::make_plan(pl, ws, goal, plan);
-    goap::print_plan(pl, ws, plan);
   }
   {
     goap::WorldState ws = goap::produce_planner_worldstate(pl,
@@ -103,7 +103,6 @@ static void debug_enemy_planner()
 
     std::vector<goap::PlanStep> plan;
     goap::make_plan(pl, ws, goal, plan);
-    goap::print_plan(pl, ws, plan);
   }
 }
 
@@ -184,9 +183,21 @@ static void debug_looter_planner()
   goap::WorldState goal = goap::produce_planner_worldstate(pl,
       {{"num_loot", 5}, {"escaped", 1}, {"health_state", Healthy}});
 
-  std::vector<goap::PlanStep> plan;
-  goap::make_plan(pl, ws, goal, plan);
-  goap::print_plan(pl, ws, plan);
+  std::vector<goap::PlanStep> a_star_plan;
+  std::cout << "A* plan" << '\n';
+  goap::make_plan(pl, ws, goal, a_star_plan);
+  goap::print_plan(pl, ws, a_star_plan);
+
+
+  std::cout << "IRA* plan" << '\n';
+  std::vector<goap::PlanStep> ira_plan;
+  goap::make_ira_star_plan(pl, ws, goal, ira_plan);
+  goap::print_plan(pl, ws, ira_plan);
+
+  std::cout << "ARA* plan" << '\n';
+  std::vector<goap::PlanStep> ara_plan;
+  goap::make_ara_star_plan(pl, ws, goal, ara_plan);
+  goap::print_plan(pl, ws, ara_plan);
 }
 
 

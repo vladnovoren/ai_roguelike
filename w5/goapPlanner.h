@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <functional>
 
 #include "goapWorldState.h"
 #include "goapAction.h"
@@ -41,7 +42,21 @@ namespace goap
     WorldState worldState;
   };
 
+  constexpr float kAraEps = 1e-2;
+
+  float ara_star(const Planner &planner, const WorldState &from, float g,
+                 float bound, const WorldState &to,
+                 std::vector<PlanStep> &plan);
+
+  float ira_star(const Planner &planner, const WorldState &from, float g,
+                 float bound, const WorldState &to,
+                 std::vector<PlanStep> &plan);
+
   float make_plan(const Planner &planner, const WorldState &from, const WorldState &to, std::vector<PlanStep> &plan);
+  float make_ira_star_plan(const Planner &planner, const WorldState &from,
+                           const WorldState &to, std::vector<PlanStep> &plan);
+  float make_ara_star_plan(const Planner &planner, const WorldState &from,
+                           const WorldState &to, std::vector<PlanStep> &plan, float eps = kAraEps);
   void print_plan(const Planner &planner, const WorldState &init, const std::vector<PlanStep> &plan);
 };
 
